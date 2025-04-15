@@ -179,10 +179,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 👨‍💻 Author
 
 **Your Name**  
-- GitHub: [@yourusername](https://github.com/yourusername)
-- LinkedIn: [Your Name](https://linkedin.com/in/yourprofile)
-- Email: your.email@example.com
+- GitHub: [@stelioszach03](https://github.com/stelioszach03)
+- LinkedIn: [YStelios Zacharioudakis](https://linkedin.com/in/yourprofile)
+- Email: sjzacha@gmail.com
 
 ---
 
-⭐️ From [Your Name](https://github.com/yourusername) ⭐️
+⭐️ From [Stelios Zacharioudakis](https://github.com/stelioszach03) ⭐️
