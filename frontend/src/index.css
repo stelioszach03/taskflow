@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Προσαρμοσμένες κλάσεις */
+@layer components {
+  .btn-primary {
+    @apply bg-primary-500 hover:bg-primary-600 text-white font-bold py-2 px-4 rounded transition-all duration-300;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-all duration-300;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow-md overflow-hidden transition-all duration-300 hover:shadow-lg;
+  }
+}
+
+/* Διατηρήστε τον υπόλοιπο CSS σας μετά από αυτές τις γραμμές */
