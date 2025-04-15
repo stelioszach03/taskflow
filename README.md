@@ -180,7 +180,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Your Name**  
 - GitHub: [@stelioszach03](https://github.com/stelioszach03)
-- LinkedIn: [YStelios Zacharioudakis](https://linkedin.com/in/yourprofile)
+- LinkedIn: [Stelios Zacharioudakis](https://linkedin.com/in/yourprofile)
 - Email: sjzacha@gmail.com
 
 ---
