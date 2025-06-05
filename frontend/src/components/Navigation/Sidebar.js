@@ -97,7 +97,6 @@ const Sidebar = () => {
             >
               TF
             </div>
-            <span className={`ml-2 ${logoTextClasses}`}>TaskFlow</span>
           </Link>
         </div>
         

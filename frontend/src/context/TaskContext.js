@@ -57,19 +57,45 @@ const taskReducer = (state, action) => {
         loading: false
       };
     case 'CREATE_TASK_SUCCESS':
-      return {
+      const newState = {
         ...state,
         tasks: [action.payload, ...state.tasks],
         loading: false
       };
-    case 'UPDATE_TASK_SUCCESS':
+      // Reorganize tasks by status after create
+      const pendingTasksNew = newState.tasks.filter(task => task.status === 'pending');
+      const inProgressTasksNew = newState.tasks.filter(task => task.status === 'in-progress');
+      const completedTasksNew = newState.tasks.filter(task => task.status === 'completed');
+      
       return {
+        ...newState,
+        filteredTasks: {
+          pending: pendingTasksNew,
+          'in-progress': inProgressTasksNew,
+          completed: completedTasksNew
+        }
+      };
+    case 'UPDATE_TASK_SUCCESS':
+      const updatedState = {
         ...state,
         tasks: state.tasks.map(task => 
           task._id === action.payload._id ? action.payload : task
         ),
         task: action.payload,
         loading: false
+      };
+      // Reorganize tasks by status after update
+      const pendingTasksUpdated = updatedState.tasks.filter(task => task.status === 'pending');
+      const inProgressTasksUpdated = updatedState.tasks.filter(task => task.status === 'in-progress');
+      const completedTasksUpdated = updatedState.tasks.filter(task => task.status === 'completed');
+      
+      return {
+        ...updatedState,
+        filteredTasks: {
+          pending: pendingTasksUpdated,
+          'in-progress': inProgressTasksUpdated,
+          completed: completedTasksUpdated
+        }
       };
     case 'DELETE_TASK_SUCCESS':
       return {
@@ -287,8 +313,7 @@ export const TaskProvider = ({ children }) => {
 
   // Update task status
   const updateTaskStatus = async (taskId, status) => {
-    dispatch({ type: 'SET_LOADING' });
-    
+    // Don't show loading for status updates to keep UI smooth
     try {
       const data = await taskService.updateTaskStatus(taskId, status);
       

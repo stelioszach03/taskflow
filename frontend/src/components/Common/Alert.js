@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
 
-const Alert = ({ type, message, duration = 5000, onClose }) => {
+const Alert = ({ type = 'info', message, duration = 5000, onClose }) => {
   const [visible, setVisible] = useState(true);
 
   // Auto-dismiss alert after duration
@@ -80,11 +80,6 @@ Alert.propTypes = {
   message: PropTypes.string.isRequired,
   duration: PropTypes.number,
   onClose: PropTypes.func,
-};
-
-Alert.defaultProps = {
-  type: 'info',
-  duration: 5000,
 };
 
 export default Alert;

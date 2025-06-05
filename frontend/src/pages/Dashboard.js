@@ -1,5 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { 
+  FiPlus, 
+  FiClipboard, 
+  FiCheckCircle, 
+  FiClock, 
+  FiAlertCircle,
+  FiTrendingUp,
+  FiActivity,
+  FiCalendar,
+  FiBarChart2,
+  FiPieChart,
+  FiUsers,
+  FiZap,
+  FiTarget,
+  FiAward,
+  FiArrowUp,
+  FiArrowDown
+} from 'react-icons/fi';
 import { useTask } from '../context/TaskContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -18,6 +37,10 @@ const Dashboard = () => {
     highPriorityTasks: 0,
     overdueTasksCount: 0,
     recentTasks: [],
+    upcomingDeadlines: [],
+    recentActivity: [],
+    weeklyProgress: 0,
+    monthlyProgress: 0,
   });
 
   // Load tasks on component mount
@@ -30,6 +53,8 @@ const Dashboard = () => {
   useEffect(() => {
     if (tasks && tasks.length > 0) {
       const today = new Date();
+      const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
       
       // Filter tasks for different categories
       const completedTasks = tasks.filter(task => task.status === 'completed');
@@ -49,6 +74,49 @@ const Dashboard = () => {
         .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
         .slice(0, 5);
       
+      // Get upcoming deadlines (next 7 days)
+      const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const upcomingDeadlines = tasks
+        .filter(task => 
+          task.dueDate && 
+          new Date(task.dueDate) >= today && 
+          new Date(task.dueDate) <= nextWeek &&
+          task.status !== 'completed'
+        )
+        .sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate))
+        .slice(0, 5);
+      
+      // Generate recent activity
+      const recentActivity = [...tasks]
+        .sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt))
+        .slice(0, 8)
+        .map(task => ({
+          id: task._id,
+          title: task.title,
+          action: task.status === 'completed' ? 'completed' : 
+                  task.updatedAt > task.createdAt ? 'updated' : 'created',
+          timestamp: task.updatedAt || task.createdAt,
+          status: task.status,
+          priority: task.priority
+        }));
+      
+      // Calculate weekly and monthly progress
+      const weeklyCompleted = completedTasks.filter(task => 
+        new Date(task.updatedAt || task.createdAt) >= weekAgo
+      ).length;
+      const weeklyTotal = tasks.filter(task => 
+        new Date(task.createdAt) >= weekAgo
+      ).length;
+      const weeklyProgress = weeklyTotal > 0 ? Math.round((weeklyCompleted / weeklyTotal) * 100) : 0;
+      
+      const monthlyCompleted = completedTasks.filter(task => 
+        new Date(task.updatedAt || task.createdAt) >= monthAgo
+      ).length;
+      const monthlyTotal = tasks.filter(task => 
+        new Date(task.createdAt) >= monthAgo
+      ).length;
+      const monthlyProgress = monthlyTotal > 0 ? Math.round((monthlyCompleted / monthlyTotal) * 100) : 0;
+      
       setDashboardStats({
         totalTasks: tasks.length,
         completedTasks: completedTasks.length,
@@ -57,6 +125,10 @@ const Dashboard = () => {
         highPriorityTasks: highPriorityTasks.length,
         overdueTasksCount: overdueTasks.length,
         recentTasks,
+        upcomingDeadlines,
+        recentActivity,
+        weeklyProgress,
+        monthlyProgress,
       });
     }
   }, [tasks]);
@@ -71,6 +143,29 @@ const Dashboard = () => {
       month: 'short',
       day: 'numeric',
     });
+  };
+
+  // Format relative time
+  const formatRelativeTime = (date) => {
+    const now = new Date();
+    const diff = now - new Date(date);
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    if (days > 0) return `${days}d ago`;
+    if (hours > 0) return `${hours}h ago`;
+    if (minutes > 0) return `${minutes}m ago`;
+    return 'Just now';
+  };
+
+  // Get greeting based on time
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
   };
 
   // Calculate completion percentage
@@ -92,192 +187,473 @@ const Dashboard = () => {
     completed: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   };
 
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100
+      }
+    }
+  };
+
+  const statsCardVariants = {
+    hidden: { scale: 0.8, opacity: 0 },
+    visible: {
+      scale: 1,
+      opacity: 1,
+      transition: {
+        type: "spring",
+        stiffness: 100
+      }
+    },
+    hover: {
+      scale: 1.05,
+      transition: {
+        type: "spring",
+        stiffness: 300
+      }
+    }
+  };
+
   return (
-    <div className="container mx-auto px-4 py-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
-            Welcome back, {user?.name}!
-          </p>
-        </div>
-        
-        <Link 
-          to="/tasks/new" 
-          className="mt-4 md:mt-0 flex items-center px-4 py-2 text-white rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2"
-          style={{ backgroundColor: primaryColor }}
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <motion.div 
+        className="container mx-auto px-4 py-6"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* Welcome Header */}
+        <motion.div 
+          className="mb-8"
+          variants={itemVariants}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-          </svg>
-          Create Task
-        </Link>
-      </div>
-
-      {error && (
-        <Alert 
-          type="error" 
-          message={error} 
-          onClose={clearError} 
-        />
-      )}
-
-      {loading ? (
-        <Loader message="Loading dashboard data..." />
-      ) : (
-        <>
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Tasks</p>
-                  <p className="text-3xl font-semibold text-gray-900 dark:text-white">{dashboardStats.totalTasks}</p>
-                </div>
-                <div className="bg-blue-100 dark:bg-blue-900 p-3 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-600 dark:text-blue-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                  </svg>
-                </div>
+          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white shadow-xl">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">
+                  {getGreeting()}, {user?.name}!
+                </h1>
+                <p className="text-blue-100 text-lg">
+                  Here's what's happening with your tasks today
+                </p>
               </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Completed</p>
-                  <p className="text-3xl font-semibold text-gray-900 dark:text-white">{dashboardStats.completedTasks}</p>
-                </div>
-                <div className="bg-green-100 dark:bg-green-900 p-3 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-green-600 dark:text-green-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">In Progress</p>
-                  <p className="text-3xl font-semibold text-gray-900 dark:text-white">{dashboardStats.inProgressTasks}</p>
-                </div>
-                <div className="bg-yellow-100 dark:bg-yellow-900 p-3 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-yellow-600 dark:text-yellow-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Overdue</p>
-                  <p className="text-3xl font-semibold text-gray-900 dark:text-white">{dashboardStats.overdueTasksCount}</p>
-                </div>
-                <div className="bg-red-100 dark:bg-red-900 p-3 rounded-full">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-red-600 dark:text-red-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
+              
+              <div className="mt-4 md:mt-0 flex flex-wrap gap-3">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => window.location.href = '/tasks/new'}
+                  className="flex items-center px-5 py-3 bg-white text-blue-600 rounded-lg font-medium shadow-lg hover:shadow-xl transition-shadow"
+                >
+                  <FiPlus className="mr-2" size={20} />
+                  Create Task
+                </motion.button>
+                
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => window.location.href = '/kanban'}
+                  className="flex items-center px-5 py-3 bg-blue-500 bg-opacity-20 text-white rounded-lg font-medium hover:bg-opacity-30 transition-colors"
+                >
+                  <FiTarget className="mr-2" size={20} />
+                  Kanban Board
+                </motion.button>
               </div>
             </div>
           </div>
+        </motion.div>
 
-          {/* Progress Section */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 md:col-span-1">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">Task Completion</h2>
-              
-              <div className="mb-2 flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Progress</span>
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{completionPercentage}%</span>
-              </div>
-              
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-6">
-                <div 
-                  className="h-2.5 rounded-full" 
-                  style={{ width: `${completionPercentage}%`, backgroundColor: primaryColor }}
-                ></div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending</p>
-                  <p className="text-xl font-semibold text-gray-900 dark:text-white">{dashboardStats.pendingTasks}</p>
+        {error && (
+          <Alert 
+            type="error" 
+            message={error} 
+            onClose={clearError} 
+          />
+        )}
+
+        {loading ? (
+          <Loader message="Loading dashboard data..." />
+        ) : (
+          <>
+            {/* Stats Cards */}
+            <motion.div 
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
+              variants={containerVariants}
+            >
+              <motion.div
+                variants={statsCardVariants}
+                whileHover="hover"
+                className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Total Tasks</p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-white">{dashboardStats.totalTasks}</p>
+                    <div className="flex items-center mt-2 text-sm">
+                      <FiTrendingUp className="text-green-500 mr-1" />
+                      <span className="text-green-500">+12%</span>
+                      <span className="text-gray-500 ml-2">vs last week</span>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-4 rounded-2xl shadow-lg">
+                    <FiClipboard className="text-white" size={28} />
+                  </div>
                 </div>
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-600 dark:text-gray-400">High Priority</p>
-                  <p className="text-xl font-semibold text-gray-900 dark:text-white">{dashboardStats.highPriorityTasks}</p>
+              </motion.div>
+
+              <motion.div
+                variants={statsCardVariants}
+                whileHover="hover"
+                className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Completed</p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-white">{dashboardStats.completedTasks}</p>
+                    <div className="flex items-center mt-2 text-sm">
+                      <FiArrowUp className="text-green-500 mr-1" />
+                      <span className="text-green-500">{completionPercentage}%</span>
+                      <span className="text-gray-500 ml-2">completion rate</span>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-green-500 to-green-600 p-4 rounded-2xl shadow-lg">
+                    <FiCheckCircle className="text-white" size={28} />
+                  </div>
                 </div>
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 md:col-span-2">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Tasks</h2>
-                <Link 
-                  to="/tasks" 
-                  className="text-sm font-medium hover:underline"
-                  style={{ color: primaryColor }}
+              </motion.div>
+
+              <motion.div
+                variants={statsCardVariants}
+                whileHover="hover"
+                className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">In Progress</p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-white">{dashboardStats.inProgressTasks}</p>
+                    <div className="flex items-center mt-2 text-sm">
+                      <FiActivity className="text-blue-500 mr-1" />
+                      <span className="text-blue-500">Active</span>
+                      <span className="text-gray-500 ml-2">right now</span>
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-yellow-500 to-orange-500 p-4 rounded-2xl shadow-lg">
+                    <FiClock className="text-white" size={28} />
+                  </div>
+                </div>
+              </motion.div>
+
+              <motion.div
+                variants={statsCardVariants}
+                whileHover="hover"
+                className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700"
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-400 mb-1">Overdue</p>
+                    <p className="text-4xl font-bold text-gray-900 dark:text-white">{dashboardStats.overdueTasksCount}</p>
+                    <div className="flex items-center mt-2 text-sm">
+                      {dashboardStats.overdueTasksCount > 0 ? (
+                        <>
+                          <FiAlertCircle className="text-red-500 mr-1" />
+                          <span className="text-red-500">Needs attention</span>
+                        </>
+                      ) : (
+                        <>
+                          <FiAward className="text-green-500 mr-1" />
+                          <span className="text-green-500">All on track!</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-gradient-to-br from-red-500 to-red-600 p-4 rounded-2xl shadow-lg">
+                    <FiAlertCircle className="text-white" size={28} />
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+
+            {/* Quick Actions */}
+            <motion.div 
+              className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+              variants={containerVariants}
+            >
+              <motion.button
+                variants={itemVariants}
+                whileHover={{ scale: 1.05, y: -5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.href = '/tasks'}
+                className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center hover:shadow-xl transition-shadow"
+              >
+                <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-3 rounded-xl shadow-lg mb-3">
+                  <FiClipboard className="text-white" size={24} />
+                </div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">All Tasks</span>
+              </motion.button>
+
+              <motion.button
+                variants={itemVariants}
+                whileHover={{ scale: 1.05, y: -5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.href = '/team'}
+                className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center hover:shadow-xl transition-shadow"
+              >
+                <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 p-3 rounded-xl shadow-lg mb-3">
+                  <FiUsers className="text-white" size={24} />
+                </div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Team</span>
+              </motion.button>
+
+              <motion.button
+                variants={itemVariants}
+                whileHover={{ scale: 1.05, y: -5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.href = '/settings'}
+                className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center hover:shadow-xl transition-shadow"
+              >
+                <div className="bg-gradient-to-br from-pink-500 to-pink-600 p-3 rounded-xl shadow-lg mb-3">
+                  <FiZap className="text-white" size={24} />
+                </div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Quick Add</span>
+              </motion.button>
+
+              <motion.button
+                variants={itemVariants}
+                whileHover={{ scale: 1.05, y: -5 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => window.location.href = '/profile'}
+                className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-xl shadow-lg p-4 border border-gray-100 dark:border-gray-700 flex flex-col items-center justify-center hover:shadow-xl transition-shadow"
+              >
+                <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 p-3 rounded-xl shadow-lg mb-3">
+                  <FiAward className="text-white" size={24} />
+                </div>
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Profile</span>
+              </motion.button>
+            </motion.div>
+
+            {/* Main Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Left Column */}
+              <div className="lg:col-span-2 space-y-8">
+                {/* Task Progress & Charts */}
+                <motion.div
+                  variants={itemVariants}
+                  className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700"
                 >
-                  View All
-                </Link>
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white flex items-center">
+                      <FiBarChart2 className="mr-2 text-blue-500" />
+                      Task Analytics
+                    </h2>
+                    <select className="text-sm bg-gray-100 dark:bg-gray-700 border-0 rounded-lg px-3 py-1 focus:ring-2 focus:ring-blue-500">
+                      <option>Last 7 days</option>
+                      <option>Last 30 days</option>
+                      <option>Last 90 days</option>
+                    </select>
+                  </div>
+                  
+                  {/* Progress Indicators */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Weekly Progress</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{dashboardStats.weeklyProgress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                        <motion.div 
+                          className="h-3 rounded-full bg-gradient-to-r from-blue-500 to-blue-600"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${dashboardStats.weeklyProgress}%` }}
+                          transition={{ duration: 1, ease: "easeOut" }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Monthly Progress</span>
+                        <span className="text-sm font-bold text-gray-900 dark:text-white">{dashboardStats.monthlyProgress}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+                        <motion.div 
+                          className="h-3 rounded-full bg-gradient-to-r from-green-500 to-green-600"
+                          initial={{ width: 0 }}
+                          animate={{ width: `${dashboardStats.monthlyProgress}%` }}
+                          transition={{ duration: 1, ease: "easeOut" }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Chart Placeholder */}
+                  <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-8 text-center">
+                    <FiPieChart className="mx-auto text-gray-400 mb-3" size={48} />
+                    <p className="text-gray-500 dark:text-gray-400">Task distribution chart coming soon</p>
+                  </div>
+                </motion.div>
+
+                {/* Recent Activity Feed */}
+                <motion.div
+                  variants={itemVariants}
+                  className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700"
+                >
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                    <FiActivity className="mr-2 text-purple-500" />
+                    Recent Activity
+                  </h2>
+                  
+                  <div className="space-y-4 max-h-96 overflow-y-auto">
+                    {dashboardStats.recentActivity.length > 0 ? (
+                      dashboardStats.recentActivity.map((activity) => (
+                        <motion.div
+                          key={activity.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <div className={`p-2 rounded-lg ${
+                            activity.action === 'completed' ? 'bg-green-100 dark:bg-green-900' :
+                            activity.action === 'created' ? 'bg-blue-100 dark:bg-blue-900' :
+                            'bg-yellow-100 dark:bg-yellow-900'
+                          }`}>
+                            {activity.action === 'completed' ? 
+                              <FiCheckCircle className="text-green-600 dark:text-green-300" size={16} /> :
+                              activity.action === 'created' ? 
+                              <FiPlus className="text-blue-600 dark:text-blue-300" size={16} /> :
+                              <FiClock className="text-yellow-600 dark:text-yellow-300" size={16} />
+                            }
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-sm text-gray-900 dark:text-white">
+                              You {activity.action} <Link to={`/tasks/${activity.id}`} className="font-medium hover:underline" style={{ color: primaryColor }}>
+                                {activity.title}
+                              </Link>
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              {formatRelativeTime(activity.timestamp)}
+                            </p>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${priorityColors[activity.priority]}`}>
+                            {activity.priority}
+                          </span>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                        No recent activity
+                      </p>
+                    )}
+                  </div>
+                </motion.div>
               </div>
-              
-              {dashboardStats.recentTasks.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                    <thead>
-                      <tr>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Task</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Priority</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Due Date</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                      {dashboardStats.recentTasks.map((task) => (
-                        <tr key={task._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                          <td className="px-4 py-3 whitespace-nowrap">
+
+              {/* Right Column */}
+              <div className="space-y-8">
+                {/* Upcoming Deadlines */}
+                <motion.div
+                  variants={itemVariants}
+                  className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700"
+                >
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                    <FiCalendar className="mr-2 text-orange-500" />
+                    Upcoming Deadlines
+                  </h2>
+                  
+                  <div className="space-y-3">
+                    {dashboardStats.upcomingDeadlines.length > 0 ? (
+                      dashboardStats.upcomingDeadlines.map((task) => (
+                        <motion.div
+                          key={task._id}
+                          whileHover={{ x: 5 }}
+                          className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                        >
+                          <div className="flex-1">
                             <Link 
-                              to={`/tasks/${task._id}`} 
-                              className="text-sm font-medium hover:underline"
-                              style={{ color: primaryColor }}
+                              to={`/tasks/${task._id}`}
+                              className="text-sm font-medium text-gray-900 dark:text-white hover:underline"
                             >
                               {task.title}
                             </Link>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${statusColors[task.status]}`}>
-                              {task.status === 'in-progress'
-                                ? 'In Progress'
-                                : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium ${priorityColors[task.priority]}`}>
-                              {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
-                            {formatDueDate(task.dueDate)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500 dark:text-gray-400">No tasks found</p>
-                </div>
-              )}
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                              Due {formatDueDate(task.dueDate)}
+                            </p>
+                          </div>
+                          <span className={`text-xs px-2 py-1 rounded-full ${priorityColors[task.priority]}`}>
+                            {task.priority}
+                          </span>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <FiCalendar className="mx-auto text-gray-400 mb-3" size={32} />
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          No upcoming deadlines
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <Link 
+                    to="/tasks" 
+                    className="mt-4 block text-center text-sm font-medium hover:underline"
+                    style={{ color: primaryColor }}
+                  >
+                    View all tasks →
+                  </Link>
+                </motion.div>
+
+                {/* Task Distribution */}
+                <motion.div
+                  variants={itemVariants}
+                  className="bg-white dark:bg-gray-800 backdrop-blur-lg bg-opacity-90 dark:bg-opacity-90 rounded-2xl shadow-lg p-6 border border-gray-100 dark:border-gray-700"
+                >
+                  <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center">
+                    <FiTarget className="mr-2 text-green-500" />
+                    Task Overview
+                  </h2>
+                  
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Completion Rate</span>
+                      <span className="text-2xl font-bold text-gray-900 dark:text-white">{completionPercentage}%</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between py-3 border-t border-gray-200 dark:border-gray-700">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">High Priority</span>
+                      <span className="text-lg font-semibold text-red-600 dark:text-red-400">{dashboardStats.highPriorityTasks}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between py-3 border-t border-gray-200 dark:border-gray-700">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Pending Tasks</span>
+                      <span className="text-lg font-semibold text-yellow-600 dark:text-yellow-400">{dashboardStats.pendingTasks}</span>
+                    </div>
+                    
+                    <div className="flex items-center justify-between py-3 border-t border-gray-200 dark:border-gray-700">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Active Tasks</span>
+                      <span className="text-lg font-semibold text-blue-600 dark:text-blue-400">{dashboardStats.inProgressTasks}</span>
+                    </div>
+                  </div>
+                </motion.div>
+              </div>
             </div>
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </motion.div>
     </div>
   );
 };
